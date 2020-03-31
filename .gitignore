@@ -1,0 +1,46 @@
+.gopath
+.gradle_cache
+*-universe-url
+
+md-to-toc.py*
+__pycache__/
+package
+
+# maven
+target/
+
+# idea
+*.i??
+.idea/
+out/
+
+# eclipse
+.classpath
+.project
+.settings/
+mysql-*/bin/
+
+# gradle
+.gradle
+build/
+
+# log
+*.log
+dcos-mysql-service.log.*
+
+# vim swap files
+*.swp
+
+# OS X
+.DS_Store
+
+# test
+integration/.cache/
+.cache/
+integration/env/
+
+# tools
+tools/shakedown_env
+*.pyc
+~$*
+frameworks/redis-cluster/cli/dcos-service-cli*

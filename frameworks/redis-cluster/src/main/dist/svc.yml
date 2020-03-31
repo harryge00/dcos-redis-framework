@@ -1,0 +1,138 @@
+name: {{SERVICE_NAME}}
+scheduler:
+  principal: {{SERVICE_PRINCIPAL}}
+  user: {{SERVICE_USER}}
+pods:
+  redis:
+    count: {{NODE_COUNT}}
+    image: "{{NODE_DOCKER_IMAGE}}"
+    {{#ENABLE_VIRTUAL_NETWORK}}
+    networks:
+      {{VIRTUAL_NETWORK_NAME}}:
+        labels: {{VIRTUAL_NETWORK_PLUGIN_LABELS}}
+    {{/ENABLE_VIRTUAL_NETWORK}}
+    placement: '{{{NODE_PLACEMENT}}}'
+
+    resource-sets:
+      nodes:
+        cpus: {{NODE_CPUS}}
+        memory: {{NODE_MEM}}
+        volume:
+          path: redis-data
+          type: {{ NODE_DISK_TYPE}}
+          size: {{ NODE_DISK }}
+        ports:
+          server:
+            port: {{ REDIS_PORT }}
+            advertise: true
+            vip:
+              prefix: server
+              port: 6379
+      side-cars:
+        cpus: 0.1
+        memory: 128      
+
+    tasks:
+      server:
+        goal: RUNNING
+        resource-set: nodes        
+        cmd: |
+          cat > redis.conf << EOF
+          port {{ REDIS_PORT }}
+          cluster-enabled yes
+          cluster-config-file nodes.conf
+          cluster-node-timeout {{ CLUSTER_NODE_TIMEOUT }}
+          appendonly yes
+          EOF
+          redis-server redis.conf
+
+      upload-rdb-s3:
+        goal: FINISH
+        resource-set: side-cars
+        env:
+          S3_ADDRESS: http://miniod.miniod.l4lb.thisdcos.directory:9000
+        cmd: |
+          echo "Uploading rdb to s3"
+
+      download-rdb-s3:
+        goal: FINISH
+        resource-set: side-cars
+        env:
+          S3_ADDRESS: http://miniod.miniod.l4lb.thisdcos.directory:9000
+        cmd: |
+          echo "Downloading rdb from s3 and restore"
+
+  redis-cli:
+    count: 1
+    image: "{{NODE_DOCKER_IMAGE}}"
+    {{#ENABLE_VIRTUAL_NETWORK}}
+    networks:
+      {{VIRTUAL_NETWORK_NAME}}:
+        labels: {{VIRTUAL_NETWORK_PLUGIN_LABELS}}
+    {{/ENABLE_VIRTUAL_NETWORK}}
+
+    resource-sets:
+      side-cars:
+        cpus: 0.1
+        memory: 128      
+
+    tasks:
+      client:
+        goal: ONCE
+        resource-set: side-cars        
+        cmd: |
+          for ((i=0;i<{{NODE_COUNT}};i++)); 
+          do 
+            NODE_LIST="${NODE_LIST} redis-${i}-server.{{SERVICE_NAME}}.autoip.dcos.thisdcos.directory:{{ REDIS_PORT }}"
+          done
+          echo "NODE_LIST: $NODE_LIST"
+          redis-cli --cluster create $NODE_LIST --cluster-replicas ${NODE_REPLICAS} --cluster-yes
+
+plans:
+  deploy:
+    strategy: serial
+    phases:
+      node-deploy:
+        strategy: serial
+        pod: redis
+        steps:
+          - default: [[server]]
+      cluster-init:
+        strategy: serial
+        pod: redis-cli
+        steps:
+          - default: [[client]]
+  replace:
+    strategy: serial
+    phases:
+      node-deploy:
+        strategy: serial
+        pod: redis
+        steps:
+          - default: [[server]]
+  update:
+    strategy: serial
+    phases:
+      node-deploy:
+        strategy: serial
+        pod: redis
+        steps:
+          - default: [[server]]
+
+  backup-rdb-s3:
+    strategy: serial
+    phases:
+      upload-rdb-s3:
+        strategy: serial
+        pod: redis
+        steps:
+          - default: [[upload-rdb-s3]]
+
+  restore-rdb-s3:
+    strategy: serial
+    phases:
+      restore-rdb-s3:
+        strategy: serial
+        pod: redis
+        steps:
+          - default: [[download-rdb-s3]]
