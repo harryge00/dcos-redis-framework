@@ -12,6 +12,8 @@ pods:
         labels: {{VIRTUAL_NETWORK_PLUGIN_LABELS}}
     {{/ENABLE_VIRTUAL_NETWORK}}
     placement: '{{{NODE_PLACEMENT}}}'
+    uris:
+      - {{REDIS_CONF_URI}}
     resource-sets:
       nodes:
         cpus: {{NODE_CPUS}}
@@ -29,21 +31,36 @@ pods:
               port: 6379
       side-cars:
         cpus: 0.1
-        memory: 128      
+        memory: 128     
     tasks:
       server:
         goal: RUNNING
         resource-set: nodes        
         cmd: |
-          cat > ${MESOS_SANDBOX}/redis-data/redis.conf << EOF
-          port {{ REDIS_PORT }}
-          dir ${MESOS_SANDBOX}/redis-data
-          cluster-enabled yes
-          cluster-config-file nodes.conf
-          cluster-node-timeout {{ CLUSTER_NODE_TIMEOUT }}
-          appendonly yes
-          EOF
-          redis-server ${MESOS_SANDBOX}/redis-data/redis.conf
+          if [ -f redis.conf ]; then
+            echo "Use redis.conf from uri: {{REDIS_CONF_URI}}"
+            cat redis.conf
+            redis-server redis.conf
+          else
+            cat > ${MESOS_SANDBOX}/redis-data/redis.conf << EOF
+            port {{ REDIS_PORT }}
+            dir ${MESOS_SANDBOX}/redis-data
+            cluster-enabled yes
+            cluster-config-file nodes.conf
+            cluster-node-timeout {{ CLUSTER_NODE_TIMEOUT }}
+            {{#REQUIREPASS}}
+            requirepass {{ REQUIREPASS }}
+            {{/REQUIREPASS}}
+            timeout {{ REDIS_TIMEOUT }}
+            tcp-keepalive {{ TCP_KEEPALIVE }}
+            appendonly {{APPENDONLY}}
+            save 900 ${RDB900}
+            save 300 ${RDB300}
+            save 60 ${RDB60}
+            EOF
+            cat ${MESOS_SANDBOX}/redis-data/redis.conf
+            redis-server ${MESOS_SANDBOX}/redis-data/redis.conf
+          fi
       upload-rdb-s3:
         goal: FINISH
         resource-set: side-cars
@@ -82,17 +99,17 @@ pods:
           NODE_REPLICAS: {{NODE_REPLICAS}} 
         cmd: |
           export MAX_POD_INDEX=$(({{NODE_COUNT}} - 1))
+          {{#REQUIREPASS}}
+          export REDISCLI_AUTH={{REQUIREPASS}}
+          {{/REQUIREPASS}}
           for i in $( seq 0 ${MAX_POD_INDEX} )
           do
-            echo "redis-${i}-server.${FRAMEWORK_HOST}"
             dig redis-${i}-server.${FRAMEWORK_HOST}
             REDIS_IP=`dig +short redis-${i}-server.${FRAMEWORK_HOST}`
             NODE_LIST="${NODE_LIST} ${REDIS_IP}:{{ REDIS_PORT }}"
           done
           echo "NODE_LIST: $NODE_LIST"
-          echo "redis-cli --cluster --cluster-yes --cluster-replicas ${NODE_REPLICAS} create $NODE_LIST"
           redis-cli --cluster create $NODE_LIST --cluster-yes --cluster-replicas ${NODE_REPLICAS}
-          sleep 1
 plans:
   deploy:
     strategy: serial

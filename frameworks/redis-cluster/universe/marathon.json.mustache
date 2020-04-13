@@ -47,6 +47,13 @@
     "NODE_PLACEMENT": "{{nodes.placement_constraint}}",
 
     "REDIS_PORT": "{{redis.port}}",
+    "REQUIREPASS": "{{redis.requirepass}}",
+    "REDIS_CONF_URI": "{{redis.config_uri}}",
+    "APPENDONLY": "{{redis.appendonly}}",
+    "RDB900": "{{redis.save900}}",
+    "RDB300": "{{redis.save300}}",
+    "RDB60": "{{redis.save60}}",
+    "TCP_KEEPALIVE":"{{redis.tcp_keepalive}}"
     "CLUSTER_NODE_TIMEOUT": "{{redis.cluster_node_timeout}}",
 
     "REDIS_CLI_IMAGE": "{{resource.assets.container.docker.redis-cli}}",

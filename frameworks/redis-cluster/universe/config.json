@@ -158,6 +158,50 @@
           "type": "integer",
           "description": "The port that will be used for redis-cli",
           "default": 5000
+        },
+        "requirepass": {
+          "type": "string",
+          "description": "Redis password",
+          "default": ""
+        },
+        "tcp_keepalive": {
+          "type": "integer",
+          "description": "Use SO_KEEPALIVE to send TCP ACKs to clients in absence of communication",
+          "default": 60
+        },
+        "redis_timeout": {
+          "type": "integer",
+          "description": "Timeout value of a redis server. Close the connection after a client is idle for N seconds (0 to disable)",
+          "default": 0
+        },
+        "save900": {
+          "type": "integer",
+          "description": "The number of write operations in 900s required to save a RDB snapshot to disks",
+          "default": 1
+        },
+        "save300": {
+          "type": "integer",
+          "description": "The number of write operations in 300s required to save a RDB snapshot to disks",
+          "default": 10
+        },
+        "save60": {
+          "type": "integer",
+          "description": "The number of write operations in 60s required to save a RDB snapshot to disks",
+          "default": 10000
+        },
+        "appendonly": {
+          "type": "string",
+          "enum": [
+            "yes",
+            "no"
+          ],
+          "description": "Enable the append-only persistent mode",
+          "default": "no"
+        },
+        "config_uri": {
+          "type": "string",
+          "description": "The uri for redis.conf. If uri specified, other configuration will be invalid.",
+          "default": ""
         }
       }
     }
