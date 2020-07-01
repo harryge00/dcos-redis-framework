@@ -7,12 +7,14 @@
           "default": 6,
           "description": "Number of Template pods to run, should be a multiple of (replicas + 1)",
           "title": "Node count",
+          "minimum": 6,
           "type": "integer"
         },
         "replicas": {
           "default": 1,
           "description": "Replicas of redis-cluster",
           "title": "Cluster replicas",
+          "minimum": 1,
           "type": "integer"
         },
         
@@ -39,7 +41,7 @@
           "type": "string"
         },
         "docker_image": {
-          "default": "master.mesos:5000/redis:5.0.5",
+          "default": "redis",
           "description": "docker image to use",
           "title": "Docker image",
           "type": "string"
